@@ -1,0 +1,10 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: kafka-controller-pdb
+  namespace: "{{NAMESPACE}}"
+spec:
+  selector:
+    matchLabels:
+      app: kafka-controller
+  maxUnavailable: 1

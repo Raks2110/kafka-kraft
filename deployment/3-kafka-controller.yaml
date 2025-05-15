@@ -1,0 +1,133 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: kafka-controller
+  name: kafka-controller
+  namespace: "{{NAMESPACE}}"
+spec:
+  podManagementPolicy: Parallel
+  replicas: 3
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: kafka-controller
+  serviceName: kafka-controller-hs
+  template:
+    metadata:
+      labels:
+        app: kafka-controller
+        owner: Rakesh
+    spec:
+      containers:
+      - command:
+        - sh
+        - -exc
+        - |
+          rm -rf /var/lib/kafka/data/lost+found
+          # Extract the ID from the hostname (e.g., kafka-0, kafka-controller-0)
+          ID=$(echo ${HOSTNAME##*-})
+
+          # Check if this is a broker or kafka-controller
+          if [[ "$HOSTNAME" == *kafka-broker* ]]; then
+            export KAFKA_NODE_ID=$((ID + 10))  # Assign node ID with offset for brokers (e.g., 100, 101, 102)
+          else
+            export KAFKA_NODE_ID=$ID  # Controllers use original IDs (0, 1, 2)
+          fi
+
+          export KAFKA_SSL_TRUSTSTORE_FILENAME=server.truststore.jks
+          export KAFKA_SSL_KEYSTORE_FILENAME=server.keystore.jks
+          export KAFKA_OPTS="-Dlogging.level=INFO"
+          export KAFKA_JMX_OPTS="-Djava.rmi.server.hostname=${POD_NAME}.kafka-broker-hs.default.svc.cluster.local \
+          -Dcom.sun.management.jmxremote=true \
+          -Dcom.sun.management.jmxremote.port=9999 \
+          -Dcom.sun.management.jmxremote.rmi.port=9999 \
+          -Dcom.sun.management.jmxremote.authenticate=false \
+          -Dcom.sun.management.jmxremote.ssl=false \
+          -javaagent:/opt/kafka/jmx_exporter/jmx_prometheus_javaagent-1.0.1.jar=1234:/opt/kafka/jmx_exporter/prometheus_kafka.yml"
+
+          exec /etc/kafka/docker/run
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: KAFKA_HEAP_OPTS
+          value: "-Xmx1024M -Xms1024M"
+        - name: JMX_PORT
+          value: "9999"
+        envFrom:
+        - configMapRef:
+            name: kafka-controller-config
+        name: kafka-controller
+        image: kafka:latest
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 6
+          initialDelaySeconds: 60
+          periodSeconds: 60
+          successThreshold: 1
+          tcpSocket:
+            port: tcp-kafka-int
+          timeoutSeconds: 5
+        ports:
+        - containerPort: 9092
+          name: tcp-kafka-int
+          protocol: TCP
+        - containerPort: 29093
+          name: tcp-kafka-ctrl
+          protocol: TCP
+        - containerPort: 9093
+          name: tcp-kafka-ssl
+          protocol: TCP
+        - containerPort: 1234
+          name: jmx
+          protocol: TCP
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsGroup: 1000
+          runAsUser: 1000
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/kafka/config
+          name: config
+        - mountPath: /var/lib/kafka/data
+          name: data
+        - mountPath: /var/log
+          name: logs
+        - mountPath: /etc/kafka/secrets/
+          name: kafka-controller-ssl
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 1000
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - emptyDir: {}
+        name: config
+      - emptyDir: {}
+        name: logs
+      - name: kafka-controller-ssl
+        configMap:
+          name: kafka-ssl
+  updateStrategy:
+    type: RollingUpdate
+  volumeClaimTemplates:
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 10Gi
+      storageClassName: kafka-sc
+      volumeMode: Filesystem

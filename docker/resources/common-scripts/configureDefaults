@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+
+declare -A env_defaults
+env_defaults=(
+# Replace CLUSTER_ID with a unique base64 UUID using "bin/kafka-storage.sh random-uuid"
+  ["CLUSTER_ID"]="5L6g3nShT-eMCtK--X86sw"
+)
+
+for key in "${!env_defaults[@]}"; do
+  if [[ -z "${!key:-}" ]]; then
+    echo ${key} not set. Setting it to default value: \"${env_defaults[$key]}\"
+    export "$key"="${env_defaults[$key]}"
+  fi
+done

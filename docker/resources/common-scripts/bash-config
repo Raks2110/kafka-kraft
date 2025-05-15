@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+set -o nounset \
+    -o errexit
+
+# Trace may expose passwords/credentials by printing them to stdout, so turn on with care.
+if [ "${TRACE:-}" == "true" ]; then
+  set -o verbose \
+      -o xtrace
+fi

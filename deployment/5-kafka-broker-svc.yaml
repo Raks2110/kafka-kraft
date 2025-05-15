@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: kafka-broker
+  name: kafka-broker-hs
+  namespace: "{{NAMESPACE}}"
+spec:
+  clusterIP: None
+  clusterIPs:
+  - None
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+  - name: tcp-kafka-int
+    port: 9092
+    protocol: TCP
+    targetPort: tcp-kafka-int
+  - name: tcp-kafka-ssl
+    port: 9093
+    protocol: TCP
+    targetPort: tcp-kafka-ssl
+  - name: tcp-kafka-ctrl
+    port: 29093
+    protocol: TCP
+    targetPort: tcp-kafka-ctrl
+  - name: jmx
+    port: 1234
+    protocol: TCP
+    targetPort: jmx
+  selector:
+    app: kafka-broker
+  sessionAffinity: None
+  type: ClusterIP

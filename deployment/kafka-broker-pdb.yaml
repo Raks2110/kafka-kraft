@@ -1,0 +1,10 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: kafka-broker-pdb
+  namespace: "{{NAMESPACE}}"
+spec:
+  selector:
+    matchLabels:
+      app: kafka-broker
+  maxUnavailable: 1
