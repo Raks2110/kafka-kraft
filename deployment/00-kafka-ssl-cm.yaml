@@ -1,0 +1,12 @@
+apiVersion: v1
+binaryData:
+  client.truststore.jks: {{base64 .Values.kafka.client.truststore.jks | quote}}
+  server.keystore.jks: {{base64 .Values.kafka.server.keystore.jks | quote}}
+  server.truststore.jks: {{base64 .Values.kafka.server.truststore.jks | quote}}
+data:
+  broker_creds: |
+    {{ creds used to create keystore and truststore }}
+kind: ConfigMap
+metadata:
+  name: kafka-ssl
+  namespace: kafka
